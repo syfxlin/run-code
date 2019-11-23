@@ -1,0 +1,59 @@
+version: '2'
+services:
+  nginx-proxy:
+    image: jwilder/nginx-proxy
+    container_name: judge0-dev-nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    environment:
+      - DEFAULT_HOST=api.judge0.local
+    ports:
+      - "8080:80"
+    restart: always
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        - DEV_USER=$JUDGE0_DEV_USER
+        - DEV_USER_ID=$JUDGE0_DEV_UID
+    image: judge0/api:dev
+    container_name: judge0-dev-api
+    environment:
+      - VIRTUAL_HOST=api.judge0.local
+      - VIRTUAL_PORT=3000
+    volumes:
+      - .:/api
+    ports:
+      - "3000:3000"
+      - "3030:3030"
+    privileged: true
+
+  db:
+    image: postgres:9.6
+    container_name: judge0-dev-db
+    env_file: judge0-api.conf
+    volumes:
+      - postgres-data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+    restart: always
+
+  redis:
+    image: redis:4.0
+    container_name: judge0-dev-redis
+    command: [
+      "bash", "-c",
+      'docker-entrypoint.sh --appendonly yes --requirepass "$$REDIS_PASSWORD"'
+    ]
+    env_file: judge0-api.conf
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    restart: always
+
+volumes:
+  postgres-data:
+  redis-data:
